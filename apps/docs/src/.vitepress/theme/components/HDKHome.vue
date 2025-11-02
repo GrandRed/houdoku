@@ -78,7 +78,7 @@ main {
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 0.75rem;
+      gap: 1.75rem;
       margin-top: 1rem;
 
       >a {

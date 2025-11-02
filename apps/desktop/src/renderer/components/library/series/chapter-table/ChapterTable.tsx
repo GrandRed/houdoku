@@ -145,7 +145,7 @@ export function ChapterTable(props: ChapterTableProps) {
         return (
           <div className="flex justify-start w-8">
             <div
-              className={`inline-flex flag:${language?.flagCode} w-[1.125rem] h-[0.75rem]`}
+              className={`inline-flex flag:${language?.flagCode} w-[1.125rem] h-[1.75rem]`}
               title={language?.name}
             />
           </div>
