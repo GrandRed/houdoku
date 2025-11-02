@@ -42,7 +42,7 @@ const AddSeriesModal: React.FC<Props> = (props: Props) => {
       // they are not usually included in the search results) so we explicitly retrieve
       // all of the series data here
 
-      let coverUrl = props.series.remoteCoverUrl;
+      const coverUrl = props.series.remoteCoverUrl;
       console.log(
         `AddSeriesModal is retrieving details for series ${props.series.sourceId} from extension ${props.series.extensionId}`,
       );
