@@ -78,6 +78,12 @@ const Search: React.FC = () => {
         FS_METADATA.id,
         searchPath,
       );
+      console.log('--- 这里是选择了文件夹后 found series:', series);
+      // 这里把封面地址也传进去
+      let firstImagePath = await ipcRenderer.invoke('filesystem:find-first-image', searchPath);
+      console.log('--- 找到的封面图片地址:', firstImagePath);
+      series.remoteCoverUrl = firstImagePath;
+      series.preview = true;
       if (series !== null) seriesList.push(series);
     }
 

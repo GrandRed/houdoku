@@ -46,6 +46,10 @@ const ExtensionImage: React.FC<Props> = (props: Props) => {
             console.error(e);
             setIsError(true);
           });
+      } else if (props.url.startsWith('D:') || props.url.startsWith('F:')) {
+        // Handle local file paths and convert to atom:// protocol
+        const atomUrl = `atom://${encodeURIComponent(props.url.replace(/\\/g, '/'))}`;
+        setResolvedUrl(atomUrl);
       } else {
         setResolvedUrl(props.url);
       }

@@ -228,6 +228,41 @@ ipcMain.handle(ipcChannels.APP.READ_ENTIRE_FILE, (_event, filepath: string) => {
   return fs.readFileSync(filepath).toString();
 });
 
+ipcMain.handle('filesystem:find-first-image', async (_event, directory: string) => {
+  console.log("进来了，递归目录查找图片文件");
+  const isImageFile = (fileName: string) => {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+    return imageExtensions.includes(path.extname(fileName).toLowerCase());
+  };
+
+  const findFirstImageInDirectory = (directory: string): string | null => {
+    try {
+      console.log("进来了", directory);
+      const files = fs.readdirSync(directory, { withFileTypes: true });
+
+      for (const file of files) {
+        const filePath = path.join(directory, file.name);
+
+        if (file.isFile() && isImageFile(file.name)) {
+          return filePath;
+        }
+
+        if (file.isDirectory()) {
+          const imagePath = findFirstImageInDirectory(filePath);
+          if (imagePath) return imagePath;
+        }
+      }
+    } catch (err) {
+      console.error(`Error reading directory: ${directory}`, err);
+    }
+
+    return null;
+  };
+
+  console.info(`Finding first image in directory: ${directory}`);
+  return findFirstImageInDirectory(directory);
+});
+
 if (process.platform === 'win32') {
   app.commandLine.appendSwitch('high-dpi-support', '1');
   app.commandLine.appendSwitch('force-device-scale-factor', '1');

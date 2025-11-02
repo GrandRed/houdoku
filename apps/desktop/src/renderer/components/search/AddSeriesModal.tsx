@@ -34,6 +34,7 @@ const AddSeriesModal: React.FC<Props> = (props: Props) => {
   const importing = useRecoilValue(importingState);
 
   useEffect(() => {
+    console.log('接收到Series:', props.series);
     setLoadingDetails(true);
 
     if (props.series !== undefined) {
@@ -41,14 +42,18 @@ const AddSeriesModal: React.FC<Props> = (props: Props) => {
       // they are not usually included in the search results) so we explicitly retrieve
       // all of the series data here
 
-      console.debug(
+      let coverUrl = props.series.remoteCoverUrl;
+      console.log(
         `AddSeriesModal is retrieving details for series ${props.series.sourceId} from extension ${props.series.extensionId}`,
       );
       ipcRenderer
         .invoke(ipcChannels.EXTENSION.GET_SERIES, props.series.extensionId, props.series.sourceId)
         .then((series?: Series) => {
           if (series !== undefined) {
-            console.debug(`AddSeriesModal found matching series ${series?.sourceId}`);
+            console.log(`AddSeriesModal found matching series ${series?.sourceId}`);
+            // 填上封面URL
+            series.remoteCoverUrl = coverUrl;
+            // 原始逻辑
             setCustomSeries(series);
           }
           return series;
