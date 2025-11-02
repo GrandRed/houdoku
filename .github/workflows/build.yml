@@ -1,35 +1,22 @@
 name: Build Windows App
-
-on:
-  push:
-    branches: [main, master]
-  pull_request:
+on: [push, pull_request]
 
 jobs:
-  build-win:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        node: ['22']
+        os: [windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'pnpm'
-
+      - uses: actions/checkout@v4
       - name: Install pnpm
-        run: npm install -g pnpm@9.0.0
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Build Windows binary
-        run: pnpm dist:win
-
-      # 可选：上传打包产物到 Artifact
-      - name: Upload build output
-        uses: actions/upload-artifact@v4
+        uses: pnpm/action-setup@v4
         with:
-          name: windows-dist
-          path: path/to/your/dist # 根据你的产物实际路径填写
+          version: 9.0.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: pnpm install
+      - run: pnpm build
+      - run: pnpm lint
