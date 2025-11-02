@@ -41,3 +41,5 @@ yarn-error.log*
 
 .vscode/settings.json
 .pnpm-store
+
+.idea/
