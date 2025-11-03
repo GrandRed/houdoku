@@ -434,7 +434,7 @@ export const ReaderSidebar: React.FC<Props> = (props: Props) => {
                     {Languages[languageChapter.languageKey] !== undefined && (
                       <>
                         <div
-                          className={`flag:${Languages[languageChapter.languageKey]?.flagCode} w-[1.125rem] h-[1.75rem]`}
+                          className={`flag:${Languages[languageChapter.languageKey]?.flagCode} w-[1.125rem] h-[3.75rem]`}
                           title={Languages[languageChapter.languageKey]?.name}
                         />
                         {`${Languages[languageChapter.languageKey].name} by ${languageChapter.groupName}`}
