@@ -231,7 +231,7 @@ ipcMain.handle(ipcChannels.APP.READ_ENTIRE_FILE, (_event, filepath: string) => {
 ipcMain.handle('filesystem:find-first-image', async (_event, directory: string) => {
   console.log("进来了，递归目录查找图片文件");
   const isImageFile = (fileName: string) => {
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'];
     return imageExtensions.includes(path.extname(fileName).toLowerCase());
   };
 
