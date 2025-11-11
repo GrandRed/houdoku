@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 const { ipcRenderer } = require('electron');
 import { Series } from '@tiyo/common';
-import { useRecoilState, useRecoilValue } from 'recoil';
+import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
 import ipcChannels from '@/common/constants/ipcChannels.json';
@@ -17,6 +17,7 @@ import {
 } from '@houdoku/ui/components/Dialog';
 import { Button } from '@houdoku/ui/components/Button';
 import { Skeleton } from '@houdoku/ui/components/Skeleton';
+import { searchResultState } from '@/renderer/state/searchStates';
 
 type Props = {
   series: Series | undefined;
@@ -32,6 +33,7 @@ const AddSeriesModal: React.FC<Props> = (props: Props) => {
   const [previewSeries, setPreviewSeries] = useState<Series>();
   const [importQueue, setImportQueue] = useRecoilState(importQueueState);
   const importing = useRecoilValue(importingState);
+  const setSearchResult = useSetRecoilState(searchResultState);
 
   useEffect(() => {
     console.log('接收到Series:', props.series);
@@ -74,7 +76,26 @@ const AddSeriesModal: React.FC<Props> = (props: Props) => {
     if (customSeries !== undefined) {
       setImportQueue([...importQueue, { series: customSeries, getFirst: false }]);
       props.setShowing(false);
+
+      // 移除已添加的 series，避免在搜索结果网格中再次显示
+      setSearchResult((prev: any) => {
+        if (!prev || !Array.isArray(prev.seriesList)) return prev;
+        return {
+          ...prev,
+          seriesList: prev.seriesList.filter((s: Series) => {
+            if (customSeries.id && s.id) {
+              return s.id !== customSeries.id;
+            }
+            return !(
+              s.sourceId === customSeries.sourceId &&
+              s.extensionId === customSeries.extensionId &&
+              s.title === customSeries.title
+            );
+          }),
+        };
+      });
     }
+    // TODO: 这里已移除 grid 中对应条目；若还需通知其他组件，可在此触发事件或使用额外的 recoil state
   };
 
   const handlePreview = async () => {
