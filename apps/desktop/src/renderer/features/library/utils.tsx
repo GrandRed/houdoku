@@ -9,7 +9,15 @@ import library from '@/renderer/services/library';
 import { getNumberUnreadChapters } from '@/renderer/util/comparison';
 import routes from '@/common/constants/routes.json';
 
+// 工具模块说明：
+// 本文件包含与 Series/Chapter 导入、更新、删除和跳转相关的常用函数。
+// - importSeries: 将 Series 和其章节从扩展/远程源抓取并写入本地库（library service）
+// - reloadSeries / reloadSeriesList: 用于刷新已有库中 series 的元数据与章节
+// - getFromChapterIds / migrateSeriesTags: 辅助性数据转换/迁移函数
+// 这些函数会与主进程通过 ipcRenderer 通信，并使用 library 服务读写持久化数据。
+
 const updateSeriesNumberUnread = (series: Series, chapterLanguages: LanguageKey[]) => {
+  // 根据传入的语言过滤条件计算该 series 的未读章节数并写回数据库
   if (series.id !== undefined) {
     const chapters: Chapter[] = library.fetchChapters(series.id);
     library.upsertSeries({
@@ -24,6 +32,7 @@ const updateSeriesNumberUnread = (series: Series, chapterLanguages: LanguageKey[
   }
 };
 
+// 从本地库加载指定 series 并通过回调设置（用于页面初始化/导航等）
 export function loadSeries(seriesId: string, setSeries: (series: Series) => void) {
   const series: Series | null = library.fetchSeries(seriesId);
   if (series !== null) {
@@ -31,6 +40,7 @@ export function loadSeries(seriesId: string, setSeries: (series: Series) => void
   }
 }
 
+// 从本地库加载指定 series 的章节列表并通过回调设置
 export function loadChapterList(
   seriesId: string,
   setChapterList: (chapterList: Chapter[]) => void,
@@ -39,6 +49,7 @@ export function loadChapterList(
   setChapterList(chapters);
 }
 
+// 从本地库中删除 series，并清理对应的缩略图缓存，最后刷新传入的 series 列表
 export function removeSeries(series: Series, setSeriesList: (seriesList: Series[]) => void) {
   if (series.id === undefined) return;
 
@@ -47,6 +58,17 @@ export function removeSeries(series: Series, setSeriesList: (seriesList: Series[
   setSeriesList(library.fetchSeriesList());
 }
 
+/**
+ * importSeries
+ *
+ * 将指定的 series 导入到本地库：
+ * - 如果不是 preview，则显示 toast 提示
+ * - 可选地通过 getFirst 参数先从扩展完整获取 series 详情（包含更多字段）
+ * - 拉取章节列表后写入数据库（library.upsertSeries / upsertChapters）
+ * - 更新未读计数并在成功/失败时更新 toast
+ *
+ * 返回：导入后本地保存的 Series（包含数据库分配的 id）
+ */
 export async function importSeries(
   series: Series,
   chapterLanguages: LanguageKey[],
@@ -68,12 +90,14 @@ export async function importSeries(
   let chapters: Chapter[] = [];
   try {
     if (getFirst) {
+      // 可选：先从扩展获取最新的 series 详情
       seriesToAdd = await ipcRenderer.invoke(
         ipcChannels.EXTENSION.GET_SERIES,
         series.extensionId,
         series.sourceId,
       );
     }
+    // 拉取章节列表（扩展实现）
     chapters = await ipcRenderer.invoke(
       ipcChannels.EXTENSION.GET_CHAPTERS,
       seriesToAdd.extensionId,
@@ -88,6 +112,7 @@ export async function importSeries(
     throw error;
   }
 
+  // 写入 series（如果有 id，会保留，以便覆盖预览等情况），然后写入章节
   const addedSeries = library.upsertSeries({
     ...seriesToAdd,
     id: series.id,
@@ -102,6 +127,7 @@ export async function importSeries(
   return addedSeries;
 }
 
+// 标记章节已读/未读并更新本地章节与 Series 的未读计数
 export function markChapters(
   chapters: Chapter[],
   series: Series,
@@ -123,6 +149,12 @@ async function reloadSeries(
   series: Series,
   chapterLanguages: LanguageKey[],
 ): Promise<Error | void> {
+  // 刷新单个 series 的流程：
+  // 1. 检查 series 是否有数据库 id，检查扩展是否存在
+  // 2. 从扩展获取最新的 series 与 chapters
+  // 3. 处理文件系统类型的 series（FS_METADATA）保持本地字段
+  // 4. 对章节进行匹配以保留已有的 id 与已读状态，并删除孤立章节
+  // 5. 写回数据库并更新封面缩略图（如果有变化）
   console.info(`Reloading series ${series.id} - ${series.title}`);
   if (series.id === undefined) {
     return new Promise((resolve) => resolve(Error('Series does not have database ID')));
@@ -148,6 +180,7 @@ async function reloadSeries(
     series.sourceId,
   );
 
+  // 文件系统类型的 series 不使用扩展返回的元数据（保留本地数据）
   if (series.extensionId === FS_METADATA.id) {
     newSeries = { ...series };
   } else {
@@ -156,6 +189,7 @@ async function reloadSeries(
     newSeries.categories = series.categories;
   }
 
+  // 合并章节：保持已有章节的 id 和已读状态，标记需要删除的章节
   const oldChapters: Chapter[] = library.fetchChapters(series.id);
   const orphanedChapterIds: string[] = oldChapters.map((chapter: Chapter) => chapter.id || '');
 
@@ -198,6 +232,7 @@ export async function reloadSeriesList(
   setReloadingSeriesList: (reloadingSeriesList: boolean) => void,
   chapterLanguages: LanguageKey[],
 ) {
+  // 批量刷新一组 series，显示进度 toast 并逐项调用 reloadSeries
   console.debug(`Reloading series list...`);
   setReloadingSeriesList(true);
 
@@ -243,11 +278,13 @@ export async function reloadSeriesList(
   setReloadingSeriesList(false);
 }
 
+// 更新 series 元数据并下载封面（若需要）
 export function updateSeries(series: Series) {
   const newSeries = library.upsertSeries(series);
   return downloadCover(newSeries);
 }
 
+// 更新 series 的 tracker 键并写回数据库
 export function updateSeriesTrackerKeys(
   series: Series,
   trackerKeys: { [trackerId: string]: string } | undefined,
@@ -261,6 +298,8 @@ export function updateSeriesTrackerKeys(
  * @returns An object with two properties:
  *  - seriesList: Series[]
  *  - chapterLists: object with keys as `seriesId`s and values as Chapter[]
+ *
+ * 说明：根据章节 id 映射到对应的 series，并收集每个 series 下匹配的章节列表，返回用于批量操作（例如导出/下载）
  */
 export function getFromChapterIds(chapterIds: string[]): {
   seriesList: Series[];
@@ -293,6 +332,7 @@ export function getFromChapterIds(chapterIds: string[]): {
   };
 }
 
+// 将旧的字段（formats/genres/...）合并迁移到新的 tags 字段中（一次性迁移工具）
 export function migrateSeriesTags() {
   const seriesList: Series[] = library.fetchSeriesList();
   seriesList.forEach((series) => {
@@ -312,6 +352,7 @@ export function migrateSeriesTags() {
   });
 }
 
+// 导航到指定 series 的详情页（会检查扩展是否仍然可用并显示 toast）
 export async function goToSeries(series: Series, navigate: (location: string) => void) {
   if (series.id !== undefined) {
     if (
