@@ -74,7 +74,7 @@ export async function importSeries(
   chapterLanguages: LanguageKey[],
   getFirst = false,
 ): Promise<Series> {
-  console.debug(`Importing series ${series.sourceId} from extension ${series.extensionId}`);
+  console.info(`utils-importSeries--1 开始导入--Importing series ${series.sourceId} from extension ${series.extensionId}`);
 
   let update: ReturnType<typeof toast>['update'] = () => false;
   if (!series.preview) {
@@ -103,6 +103,7 @@ export async function importSeries(
       seriesToAdd.extensionId,
       seriesToAdd.sourceId,
     );
+    // console.info(`utils-importSeries--2 获取章节--Fetched ${chapters.length} chapters for series ${seriesToAdd.sourceId}`);
   } catch (error) {
     update({
       title: 'Failed to add series',
@@ -117,13 +118,15 @@ export async function importSeries(
     ...seriesToAdd,
     id: series.id,
   });
+  // console.info(`utils-importSeries--3 写入图库信息--Written series ${addedSeries.sourceId} with database ID ${addedSeries.id}`);
   library.upsertChapters(chapters, addedSeries);
   updateSeriesNumberUnread(addedSeries, chapterLanguages);
 
-  console.debug(`Imported series ${addedSeries.sourceId} with database ID ${addedSeries.id}`);
+  // console.info(`utils-importSeries--4 导入结束--Imported series ${addedSeries.sourceId} with database ID ${addedSeries.id}`);
   if (!series.preview) {
     update({ title: 'Added series', description: `Added ${addedSeries.title}`, duration: 5000 });
   }
+  console.info(`utils-importSeries--5 导入完成--Import of series complete.`, addedSeries);
   return addedSeries;
 }
 
