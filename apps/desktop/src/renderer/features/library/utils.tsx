@@ -75,8 +75,6 @@ export async function importSeries(
   getFirst = false,
 ): Promise<Series> {
   // console.info(`utils-importSeries--1 开始导入 ${series.title} 图片地址 ${series.remoteCoverUrl}`);
-  // 图片信息会被重置 这里提取后面重新赋值
-  const remoteCoverUrl = series.remoteCoverUrl
 
   let update: ReturnType<typeof toast>['update'] = () => false;
   if (!series.preview) {
@@ -115,8 +113,9 @@ export async function importSeries(
 
     throw error;
   }
-  // 恢复图片地址
-  seriesToAdd.remoteCoverUrl = remoteCoverUrl;
+  // 恢复原始数据中的数据
+  seriesToAdd.remoteCoverUrl = series.remoteCoverUrl;
+  seriesToAdd.categories = series.categories || [];
 
   // 写入 series（如果有 id，会保留，以便覆盖预览等情况），然后写入章节
   const addedSeries = library.upsertSeries({

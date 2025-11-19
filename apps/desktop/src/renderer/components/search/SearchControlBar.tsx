@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { ExtensionMetadata } from '@tiyo/common';
+import { ExtensionMetadata, Series} from '@tiyo/common';
 import { useRecoilState, useSetRecoilState, useRecoilValue } from 'recoil';
 const { ipcRenderer } = require('electron');
-import { Series } from '@tiyo/common';
 import {
   searchExtensionState,
   searchTextState,
@@ -29,7 +28,7 @@ import {
 } from '@houdoku/ui/components/Tooltip';
 import { Input } from '@houdoku/ui/components/Input';
 import { Label } from '@houdoku/ui/components/Label';
-import { importingState, importQueueState } from '@/renderer/state/libraryStates';
+import { importingState, importQueueState, categoryListState } from '@/renderer/state/libraryStates';
 import { searchResultState } from '@/renderer/state/searchStates'; // 新增 (若已在文件中则忽略)
 
 interface Props {
@@ -48,6 +47,10 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
   const [importQueue, setImportQueue] = useRecoilState(importQueueState); // 新增
   const searchResult = useRecoilValue(searchResultState); // 新增（获取当前搜索结果）
   const setSearchResult = useSetRecoilState(searchResultState); // 新增：用于逐项从 searchResult 中移除已加入的 series
+  const availableCategories = useRecoilValue(categoryListState);
+
+  // 新增：选择要应用到所有导入项的分类 id（若未选择则不修改原条目的 categories）
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
 
   const handleSelectDirectory = async () => {
     const fileList = await ipcRenderer.invoke(
@@ -74,15 +77,23 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
     if (!searchResult || !Array.isArray(searchResult.seriesList) || searchResult.seriesList.length === 0) return;
 
     const list = [...searchResult.seriesList];
-    // list.forEach((item) => {
-    //   console.log('全部保存-准备加入导入队列:', item.remoteCoverUrl, item.title);
-    // });
+
+    // 如果选择了分类，则在加入队列时把该分类应用到每个 series 的 categories 字段
+    const toAdd = list.map((item) => {
+      const newSeries = {
+        ...item,
+        categories:
+          selectedCategoryId !== undefined
+            ? // 覆盖或设置 categories 为所选分类
+              [selectedCategoryId]
+            : item.categories,
+      } as Series;
+      return { series: newSeries, getFirst: true };
+    });
+
     
-    // 一次性追加所有项（性能更好）
-    setImportQueue((prev) => [
-      ...prev,
-      ...list.map((item) => ({ series: item, getFirst: true })),
-    ]);
+    // 一次性追加所有项（性能更好），使用函数式 setter 避免并发写入问题
+    setImportQueue((prev) => [...prev, ...toAdd]);
 
     // 然后一次性从 searchResult 移除这些项（避免在循环里多次 set）
     setSearchResult((prev: any) => {
@@ -102,8 +113,9 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
   const renderFilesystemControls = () => {
     return (
       <div className="flex space-x-4">
-        <Button onClick={handleSelectDirectory}>Select Directory</Button>
+        <Button onClick={handleSelectDirectory}>选择目录</Button>
         <Button onClick={handleSaveAllDirectory}>全部保存</Button>
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -117,20 +129,43 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
                   htmlFor="checkboxMultiSeriesMode"
                   className="flex text-sm font-medium items-center space-x-2"
                 >
-                  <span>Multi-series mode</span>
+                  <span>多选模式</span>
                   <HelpCircle className="w-4 h-4" />
                 </Label>
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom">
               <p>
-                When multi-series mode is enabled, each item in the selected
-                <br />
-                directory is treated as a separate series.
+                启用多系列模式时，所选目录中的每个项目都被视为单独的系列
               </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+
+        <div className="flex space-x-2 items-center">
+          {/* 分类下拉：选择后在保存时应用到所有导入项 */}
+          <Select
+            defaultValue={selectedCategoryId ?? '__none'}
+            onValueChange={(value) => setSelectedCategoryId(value === '__none' ? undefined : value || undefined)}
+          >
+            <SelectTrigger className="max-w-52">
+              <SelectValue placeholder="Category (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {/* 首项为不选择分类，value 不能是空字符串 */}
+                <SelectItem key="none" value="__none">
+                  默认分类
+                </SelectItem>
+                {availableCategories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     );
   };
