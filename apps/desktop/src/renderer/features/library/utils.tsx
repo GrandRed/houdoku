@@ -74,7 +74,9 @@ export async function importSeries(
   chapterLanguages: LanguageKey[],
   getFirst = false,
 ): Promise<Series> {
-  console.info(`utils-importSeries--1 开始导入--Importing series ${series.sourceId} from extension ${series.extensionId}`);
+  // console.info(`utils-importSeries--1 开始导入 ${series.title} 图片地址 ${series.remoteCoverUrl}`);
+  // 图片信息会被重置 这里提取后面重新赋值
+  const remoteCoverUrl = series.remoteCoverUrl
 
   let update: ReturnType<typeof toast>['update'] = () => false;
   if (!series.preview) {
@@ -89,6 +91,7 @@ export async function importSeries(
   let seriesToAdd = series;
   let chapters: Chapter[] = [];
   try {
+    // 注意这里如果是false 无法被正常添加到首页库中
     if (getFirst) {
       // 可选：先从扩展获取最新的 series 详情
       seriesToAdd = await ipcRenderer.invoke(
@@ -112,6 +115,8 @@ export async function importSeries(
 
     throw error;
   }
+  // 恢复图片地址
+  seriesToAdd.remoteCoverUrl = remoteCoverUrl;
 
   // 写入 series（如果有 id，会保留，以便覆盖预览等情况），然后写入章节
   const addedSeries = library.upsertSeries({
