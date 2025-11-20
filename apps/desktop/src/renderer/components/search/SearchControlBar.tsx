@@ -28,8 +28,13 @@ import {
 } from '@houdoku/ui/components/Tooltip';
 import { Input } from '@houdoku/ui/components/Input';
 import { Label } from '@houdoku/ui/components/Label';
-import { importingState, importQueueState, categoryListState } from '@/renderer/state/libraryStates';
-import { searchResultState } from '@/renderer/state/searchStates'; // 新增 (若已在文件中则忽略)
+import {
+  activeSeriesListState,
+  importingState,
+  importQueueState,
+  categoryListState,
+} from '@/renderer/state/libraryStates';
+import { searchResultState } from '@/renderer/state/searchStates';
 
 interface Props {
   extensionList: ExtensionMetadata[];
@@ -48,6 +53,7 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
   const searchResult = useRecoilValue(searchResultState); // 新增（获取当前搜索结果）
   const setSearchResult = useSetRecoilState(searchResultState); // 新增：用于逐项从 searchResult 中移除已加入的 series
   const availableCategories = useRecoilValue(categoryListState);
+  const activeSeriesList = useRecoilValue(activeSeriesListState);
 
   // 新增：选择要应用到所有导入项的分类 id（若未选择则不修改原条目的 categories）
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
@@ -76,7 +82,18 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
   const handleSaveAllDirectory = () => {
     if (!searchResult || !Array.isArray(searchResult.seriesList) || searchResult.seriesList.length === 0) return;
 
-    const list = [...searchResult.seriesList];
+    // 过滤：剔除已经在库中的 series（根据 sourceId 判定相同）
+    const existingSourceIds = new Set(activeSeriesList.map((s: Series) => s.sourceId));
+    const list = [...searchResult.seriesList].filter((item: Series) => {
+      // 若没有 sourceId 则保留（无法判定），否则排除已存在的 sourceId
+      if (!item.sourceId) return true;
+      return !existingSourceIds.has(item.sourceId);
+    });
+    // 若全部被过滤掉则直接清空
+    if (list.length === 0) {
+      setSearchResult({ seriesList: [], hasMore: false });
+      return;
+    }
 
     // 如果选择了分类，则在加入队列时把该分类应用到每个 series 的 categories 字段
     const toAdd = list.map((item) => {
@@ -91,23 +108,11 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
       return { series: newSeries, getFirst: true };
     });
 
-    
     // 一次性追加所有项（性能更好），使用函数式 setter 避免并发写入问题
     setImportQueue((prev) => [...prev, ...toAdd]);
 
-    // 然后一次性从 searchResult 移除这些项（避免在循环里多次 set）
-    setSearchResult((prev: any) => {
-      if (!prev || !Array.isArray(prev.seriesList)) return prev;
-      // 辅助匹配函数
-      const seriesMatches = (a: Series, b: Series) => {
-        if (a.id && b.id) return a.id === b.id;
-        return a.sourceId === b.sourceId && a.extensionId === b.extensionId && a.title === b.title;
-      };
-      return {
-        ...prev,
-        seriesList: prev.seriesList.filter((x: Series) => !list.some((s) => seriesMatches(x, s))),
-      };
-    });
+    // 优化：保存全部后直接清空 searchResult，避免逐项移除或并发问题
+    setSearchResult({ seriesList: [], hasMore: false });
   };
 
   const renderFilesystemControls = () => {
