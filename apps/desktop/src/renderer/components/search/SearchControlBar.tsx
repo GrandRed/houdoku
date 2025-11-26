@@ -48,8 +48,7 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
   const setSearchText = useSetRecoilState(searchTextState);
   const setShowingFilterDrawer = useSetRecoilState(showingFilterDrawerState);
   const [multiSeriesEnabled, setMultiSeriesEnabled] = useState(false);
-  const importing = useRecoilValue(importingState);
-  const [importQueue, setImportQueue] = useRecoilState(importQueueState); // 新增
+  const [_importQueue, setImportQueue] = useRecoilState(importQueueState); // 新增
   const searchResult = useRecoilValue(searchResultState); // 新增（获取当前搜索结果）
   const setSearchResult = useSetRecoilState(searchResultState); // 新增：用于逐项从 searchResult 中移除已加入的 series
   const availableCategories = useRecoilValue(categoryListState);

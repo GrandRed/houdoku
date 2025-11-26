@@ -18,6 +18,7 @@ import {
 import { Button } from '@houdoku/ui/components/Button';
 import { Skeleton } from '@houdoku/ui/components/Skeleton';
 import { searchResultState } from '@/renderer/state/searchStates';
+import { SearchResult } from '@/common/models/types';
 
 type Props = {
   series: Series | undefined;
@@ -78,7 +79,7 @@ const AddSeriesModal: React.FC<Props> = (props: Props) => {
       props.setShowing(false);
 
       // 移除已添加的 series，避免在搜索结果网格中再次显示
-      setSearchResult((prev: any) => {
+      setSearchResult((prev: SearchResult) => {
         if (!prev || !Array.isArray(prev.seriesList)) return prev;
         return {
           ...prev,
