@@ -123,7 +123,11 @@ export async function importSeries(
     id: series.id,
   });
   // console.info(`utils-importSeries--3 写入图库信息--Written series ${addedSeries.sourceId} with database ID ${addedSeries.id}`);
-  library.upsertChapters(chapters, addedSeries);
+  // chapters 文件夹名称自然排序
+  const sortedChapters = [...chapters].sort((a, b) =>
+    a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }),
+  );
+  library.upsertChapters(sortedChapters, addedSeries);
   updateSeriesNumberUnread(addedSeries, chapterLanguages);
 
   // console.info(`utils-importSeries--4 导入结束--Imported series ${addedSeries.sourceId} with database ID ${addedSeries.id}`);
