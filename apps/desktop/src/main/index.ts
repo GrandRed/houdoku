@@ -316,6 +316,14 @@ ipcMain.handle('filesystem:find-first-image', async (_event, directory: string) 
   return result;
 });
 
+ipcMain.handle('filesystem:path-exists', (_event, targetPath: string) => {
+  try {
+    return fs.existsSync(targetPath);
+  } catch (err) {
+    console.error(`Error checking path existence: ${targetPath}`, err);
+    return false;
+  }
+});
 
 if (process.platform === 'win32') {
   app.commandLine.appendSwitch('high-dpi-support', '1');

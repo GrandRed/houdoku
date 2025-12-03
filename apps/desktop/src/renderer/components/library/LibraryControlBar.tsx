@@ -1,7 +1,7 @@
 import React from 'react';
 import { Series, SeriesStatus } from '@tiyo/common';
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
-import { reloadSeriesList } from '@/renderer/features/library/utils';
+import { reloadSeriesList, removeSeries } from '@/renderer/features/library/utils';
 import { LibrarySort, LibraryView, ProgressFilter } from '@/common/models/types';
 import {
   filterState,
@@ -15,6 +15,7 @@ import {
   libraryViewState,
   librarySortState,
   chapterLanguagesState,
+  confirmRemoveSeriesState,
 } from '@/renderer/state/settingStates';
 import { Button } from '@houdoku/ui/components/Button';
 import {
@@ -45,6 +46,10 @@ import {
 } from '@houdoku/ui/components/DropdownMenu';
 import { Input } from '@houdoku/ui/components/Input';
 
+// Add electron ipcRenderer (same style as other renderer files)
+// @ts-ignore
+const { ipcRenderer } = require('electron');
+
 const SORT_ICONS = {
   [LibrarySort.TitleAsc]: <ArrowUp size={14} />,
   [LibrarySort.TitleDesc]: <ArrowDown size={14} />,
@@ -68,6 +73,7 @@ const LibraryControlBar: React.FC<Props> = (props: Props) => {
   const [libraryView, setLibraryView] = useRecoilState(libraryViewState);
   const [librarySort, setLibrarySort] = useRecoilState(librarySortState);
   const chapterLanguages = useRecoilValue(chapterLanguagesState);
+  const confirmRemoveSeries = useRecoilValue(confirmRemoveSeriesState);
 
   const refreshHandler = () => {
     if (!reloadingSeriesList) {
@@ -77,6 +83,25 @@ const LibraryControlBar: React.FC<Props> = (props: Props) => {
         setReloadingSeriesList,
         chapterLanguages,
       );
+    }
+  };
+
+  // 新增：清理不存在作品的处理器
+  const removeMissingHandler = async () => {
+    const list = props.getFilteredList();
+    for (const s of list) {
+      if (!s || !s.sourceId) continue;
+      // 调用 main 进程判断 path 是否存在
+      const exists: boolean = await ipcRenderer.invoke('filesystem:path-exists', s.sourceId);
+      if (!exists) {
+        if (confirmRemoveSeries) {
+          if (window.confirm(`Remove series "${s.title}"?`)) {
+            removeSeries(s, setSeriesList);
+          }
+        } else {
+          removeSeries(s, setSeriesList);
+        }
+      }
     }
   };
 
@@ -249,6 +274,11 @@ const LibraryControlBar: React.FC<Props> = (props: Props) => {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* 新增按钮：清空不存在作品 */}
+        <Button variant="outline" onClick={removeMissingHandler} disabled={reloadingSeriesList}>
+          清空不存在作品
+        </Button>
       </div>
       <div className="flex gap-3 flex-nowrap justify-end">
         <form onSubmit={() => false}>
