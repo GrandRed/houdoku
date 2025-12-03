@@ -1,7 +1,7 @@
 import React from 'react';
 import { Series, SeriesStatus } from '@tiyo/common';
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
-import { reloadSeriesList, removeSeries } from '@/renderer/features/library/utils';
+import { reloadSeriesList, removeSeries, showToast } from '@/renderer/features/library/utils';
 import { LibrarySort, LibraryView, ProgressFilter } from '@/common/models/types';
 import {
   filterState,
@@ -89,19 +89,31 @@ const LibraryControlBar: React.FC<Props> = (props: Props) => {
   // 新增：清理不存在作品的处理器
   const removeMissingHandler = async () => {
     const list = props.getFilteredList();
+    let removedCount = 0;
     for (const s of list) {
       if (!s || !s.sourceId) continue;
       // 调用 main 进程判断 path 是否存在
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       const exists: boolean = await ipcRenderer.invoke('filesystem:path-exists', s.sourceId);
       if (!exists) {
         if (confirmRemoveSeries) {
+          // eslint-disable-next-line no-alert
           if (window.confirm(`Remove series "${s.title}"?`)) {
             removeSeries(s, setSeriesList);
+            removedCount++;
           }
         } else {
           removeSeries(s, setSeriesList);
+          removedCount++;
         }
       }
+    }
+
+    if (removedCount > 0) {
+      showToast('Removed missing series', `${removedCount} series removed from library.`, 5000);
+    } else {
+      showToast('No missing series found', undefined, 3000);
     }
   };
 

@@ -289,6 +289,24 @@ export async function reloadSeriesList(
   setReloadingSeriesList(false);
 }
 
+/**
+ * showToast
+ *
+ * 通用的消息弹出封装，接收 title/description/duration 三个参数并返回 toast 的响应对象，
+ * 方便外部调用后使用 returned.update(...) 更新该通知。
+ */
+export function showToast(
+  title: string,
+  description?: string,
+  duration?: number,
+) {
+  return toast({
+    title,
+    description,
+    duration,
+  });
+}
+
 // 更新 series 元数据并下载封面（若需要）
 export function updateSeries(series: Series) {
   const newSeries = library.upsertSeries(series);
