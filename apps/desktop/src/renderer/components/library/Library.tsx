@@ -82,8 +82,16 @@ const Library: React.FC<Props> = () => {
       // 预览条目不显示在库中
       if (series.preview) return false;
 
-      // 文本过滤（标题）
-      if (!series.title.toLowerCase().includes(filter.toLowerCase())) return false;
+      // 文本过滤：合并 title 和 description，构造正则表达式。
+      const q = (filter || '').trim();
+      if (q.length > 0) {
+        // 转义正则特殊字符，然后把连续空白替换为 .+（空格代表一个或多个字符）
+        const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = escapeRegex(q).replace(/\s+/g, '.+');
+        const re = new RegExp(pattern, 'i');
+        const combined = `${series.title || ''} ${series.description || ''}`;
+        if (!re.test(combined)) return false;
+      }
 
       // 状态过滤（例如 ongoing/finished）
       if (libraryFilterStatus !== null && series.status !== libraryFilterStatus) {

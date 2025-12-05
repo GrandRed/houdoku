@@ -57,6 +57,10 @@ const LibraryGrid: React.FC<Props> = (props: Props) => {
    * @returns the cover image for a series, which can be put in an <img> tag
    */
   const getImageSource = (series: Series) => {
+    // 确定系列的封面图片：
+    // 1) 如果存在已下载的缩略图文件（thumbnailsDir/series.id.ext），返回 atom:// 路径
+    // 2) 如果该系列来自本地文件系统（FS_METADATA），优先使用本地路径
+    // 3) 否则回退到 remoteCoverUrl 或空白封面
     const fileExtensions = constants.IMAGE_EXTENSIONS;
     for (let i = 0; i < fileExtensions.length; i += 1) {
       const thumbnailPath = path.join(thumbnailsDir, `${series.id}.${fileExtensions[i]}`);
@@ -144,7 +148,15 @@ const LibraryGrid: React.FC<Props> = (props: Props) => {
 
             {libraryView === LibraryView.GridComfortable && (
               <div className="space-y-1 text-sm pb-3">
+                {/* Series title: edit classes here to change title appearance */}
                 <h3 className="font-medium leading-none line-clamp-3">{series.title}</h3>
+
+                {/* 在标题下方显示 series.description（限制为两行）*/}
+                {series.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {series.description}
+                  </p>
+                )}
               </div>
             )}
           </div>
