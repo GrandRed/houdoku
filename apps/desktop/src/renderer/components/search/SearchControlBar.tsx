@@ -78,7 +78,7 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
   /**
    * 保存全部查询结果
    */
-  const handleSaveAllDirectory = () => {
+  const handleSaveAllDirectory = async () => {
     if (!searchResult || !Array.isArray(searchResult.seriesList) || searchResult.seriesList.length === 0) return;
 
     // 过滤：剔除已经在库中的 series（根据 sourceId 判定相同）
@@ -95,17 +95,34 @@ const SearchControlBar: React.FC<Props> = (props: Props) => {
     }
 
     // 如果选择了分类，则在加入队列时把该分类应用到每个 series 的 categories 字段
-    const toAdd = list.map((item) => {
-      const newSeries = {
-        ...item,
-        categories:
-          selectedCategoryId !== undefined
-            ? // 覆盖或设置 categories 为所选分类
-              [selectedCategoryId]
-            : item.categories,
-      } as Series;
-      return { series: newSeries, getFirst: true };
-    });
+    // 以及尝试读取目录下的 remark.txt 写入 description 字段（仅在 FS_METADATA 条目上）
+    const processedList: Series[] = await Promise.all(
+      list.map(async (item) => {
+        let newDesc = item.description;
+        try {
+          // 仅对本地文件系统类型尝试读取 remark.txt
+          if (item.extensionId === FS_METADATA.id && item.sourceId) {
+            // 调用 main 进程的 handler 读取 remark.txt（若不存在返回 null）
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            const remark: string | null = await ipcRenderer.invoke('app:read-remark', item.sourceId);
+            if (remark && remark.trim().length > 0) newDesc = remark;
+          }
+        } catch (e) {
+          // 读取失败则忽略，保留原 description
+          console.debug(`Could not read remark for ${item.sourceId}`, e);
+        }
+
+        return {
+          ...item,
+          description: newDesc,
+          categories:
+            selectedCategoryId !== undefined ? [selectedCategoryId] : item.categories,
+        } as Series;
+      }),
+    );
+
+    const toAdd = processedList.map((series) => ({ series, getFirst: true }));
 
     // 一次性追加所有项（性能更好），使用函数式 setter 避免并发写入问题
     setImportQueue((prev) => [...prev, ...toAdd]);

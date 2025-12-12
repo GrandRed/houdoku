@@ -325,6 +325,18 @@ ipcMain.handle('filesystem:path-exists', (_event, targetPath: string) => {
   }
 });
 
+// 新增：读取指定目录下的 remark.txt 并返回其内容（若不存在或读取失败则返回 null）
+ipcMain.handle('app:read-remark', (_event, dirPath: string) => {
+  try {
+    const remarkPath = path.join(dirPath, 'remark.txt');
+    if (!fs.existsSync(remarkPath)) return null;
+    return fs.readFileSync(remarkPath).toString();
+  } catch (err) {
+    console.error(`Failed to read remark.txt in ${dirPath}`, err);
+    return null;
+  }
+});
+
 if (process.platform === 'win32') {
   app.commandLine.appendSwitch('high-dpi-support', '1');
   app.commandLine.appendSwitch('force-device-scale-factor', '1');
