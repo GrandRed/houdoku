@@ -116,6 +116,7 @@ export async function importSeries(
   // 恢复原始数据中的数据
   seriesToAdd.remoteCoverUrl = series.remoteCoverUrl;
   seriesToAdd.categories = series.categories || [];
+  seriesToAdd.description = series.description;
 
   // 写入 series（如果有 id，会保留，以便覆盖预览等情况），然后写入章节
   const addedSeries = library.upsertSeries({
